@@ -93,6 +93,7 @@ contract ProverMarketplace {
     ) public returns (bool) {
         bytes32 requestID = getRequestID(verifier, programHash, bounty, callbackContract, callbackSelector, input);
 
+        // Checks
         RequestStatus status = idToRequestStatus[requestID];
         if (status == RequestStatus.NOT_FOUND) {
             revert RequestNotFound();
@@ -104,13 +105,20 @@ contract ProverMarketplace {
             revert ProofVerificationFailed();
         }
 
+        // Effects
         idToRequestStatus[requestID] = RequestStatus.FULFILLED;
         emit ProofFulfilled(msg.sender, address(verifier), programHash, bounty, callbackContract, callbackSelector, input, output, proof);
-        
-        if (callbackContract != address(0)) {
+
+        // Interactions
+        if (bounty > 0) {
+            (bool sent, ) = msg.sender.call{value: bounty}("");
+            require(sent, "Failed to send Ether");
+        }
+
+        if (callbackContract == address(0)) {
             return true;
         }
-        (bool success, ) = callbackContract.call(abi.encodeWithSelector(callbackSelector, output));
+        (bool success, ) = callbackContract.call(abi.encodePacked(callbackSelector, output)); //TODO: make sure that the prover can't abuse this, for example, by intentionally running out of gass
         return success;
     }
 }
