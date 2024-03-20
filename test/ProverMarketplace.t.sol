@@ -99,10 +99,17 @@ contract CounterTest is Test {
 
     // Ensure a request with a verifier address of 0 reverts with custom error
     function test_RequestProofZeroVerifier() public {
-        vm.expectRevert(ProverMarketplace.ProofRequestMustIncludeVerifier.selector);
+        vm.expectRevert(ProverMarketplace.RequestMustIncludeVerifier.selector);
         marketplace.requestProofWithCallback{value: 0.1 ether}(
             IVerifier(address(0)), programHash, address(callbackContract), callbackSelector, input
         );
+    }
+
+    // Ensure a request made twice with identical parameters reverts with custom error
+    function test_RequestProofTwice() public {
+        marketplace.requestProof{value: 0.1 ether}(verifier, programHash, input);
+        vm.expectRevert(ProverMarketplace.RequestAlreadyExists.selector);
+        marketplace.requestProof{value: 0.1 ether}(verifier, programHash, input);
     }
 
     // Test a standard proof fulfillment

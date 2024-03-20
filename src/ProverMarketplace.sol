@@ -21,7 +21,7 @@ contract ProverMarketplace {
     /// @dev this is the only on-chain storage used by the contract
     mapping(bytes32 => RequestStatus) public idToRequestStatus;
 
-    /// @notice emitted when a proof request is made. 
+    /// @notice emitted when a proof request is made.
     /// @dev Includes all of the information a node needs to fulfill a request without reading any contract storage.
     ///      Events can be indexed by sender, proof verifier, and program hash to allow nodes to specialize in
     ///      generating proofs for specific contracts, proof systems, or programs
@@ -49,7 +49,9 @@ contract ProverMarketplace {
     );
 
     /// @notice Thrown when a proof request is made without specifying a verifier
-    error ProofRequestMustIncludeVerifier();
+    error RequestMustIncludeVerifier();
+    /// @notice Thrown when a proof request is made twice with identical parameters
+    error RequestAlreadyExists();
     /// @notice Thrown when a node tries to fulfill a request that does not exist
     error RequestNotFound();
     /// @notice Thrown when a verifier does not accept a node's proof
@@ -89,10 +91,15 @@ contract ProverMarketplace {
         bytes calldata input
     ) public payable {
         if (address(verifier) == address(0)) {
-            revert ProofRequestMustIncludeVerifier();
+            revert RequestMustIncludeVerifier();
         }
         bytes32 requestID = getRequestID(verifier, programHash, msg.value, callbackContract, callbackSelector, input);
+
+        if (idToRequestStatus[requestID] != RequestStatus.NOT_FOUND) {
+            revert RequestAlreadyExists();
+        }
         idToRequestStatus[requestID] = RequestStatus.PENDING;
+
         emit ProofRequested(
             msg.sender, address(verifier), programHash, msg.value, callbackContract, callbackSelector, input
         );
